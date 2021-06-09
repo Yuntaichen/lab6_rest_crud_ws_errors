@@ -1,7 +1,7 @@
 package com.labs;
 
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
-import com.sun.jersey.api.core.ClassNamesResourceConfig;
+import com.sun.jersey.api.core.PackagesResourceConfig;
 import com.sun.jersey.api.core.ResourceConfig;
 import java.io.IOException;
 import java.net.URI;
@@ -13,7 +13,7 @@ public class App {
     public static void main(String[] args) {
         HttpServer server = null;
         try {
-            ResourceConfig resourceConfig = new ClassNamesResourceConfig(StudentResource.class);
+            ResourceConfig resourceConfig = new PackagesResourceConfig(StudentResource.class.getPackage().getName());
             server = GrizzlyServerFactory.createHttpServer(BASE_URI, resourceConfig);
             server.start();
             System.in.read();

@@ -253,34 +253,16 @@ public class ClientApp {
         String mark = scanner.nextLine();
 
         // проверим ввод на наличие значений: строка не является пустой и не состоит из пробелов
-        if ((name != null && !name.trim().isEmpty())  &&
-                (surname != null && !surname.trim().isEmpty()) &&
-                (age != null && !age.trim().isEmpty()) &&
-                (studentId != null && !studentId.trim().isEmpty()) &&
-                (mark != null && !mark.trim().isEmpty())) {
-            try {
-                Integer.parseInt(age.trim());
-                Integer.parseInt(studentId.trim());
-
-                WebResource webResource = client.resource(URL);
-
-                webResource = webResource.queryParam("studentName", name).queryParam("studentSurname",
+        WebResource webResource = client.resource(URL);
+        webResource = webResource.queryParam("studentName", name).queryParam("studentSurname",
                         surname).queryParam("studentAge", age).queryParam("studentId",
                         studentId).queryParam("studentMark", mark);
 
-                ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).post(ClientResponse.class);
-                if (response.getStatus() != ClientResponse.Status.OK.getStatusCode()) {
-                    throw new IllegalStateException("Request failed");
-                }
-                System.out.println(response.getStatus());
+        ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).post(ClientResponse.class);
 
-            } catch (NumberFormatException ex) {
-                System.out.println("Incorrect age or studentId value!");
-            }
-        }
-        else {
-            System.out.println("Your request is incorrect!");
-        }
+        System.out.println(response.getStatus());
+        System.out.println(response.getEntity(new GenericType<String>() {}));
+
     }
 
     private static void searchStudentsByFields(Client client) {

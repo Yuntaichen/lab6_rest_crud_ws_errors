@@ -22,8 +22,42 @@ public class StudentResource {
             @QueryParam("studentSurname") String surname,
             @QueryParam("studentAge") String age,
             @QueryParam("studentId") String studentId,
-            @QueryParam("studentMark") String mark) {
-        return new PostgreSQLDAO().createStudent(name, surname, age, studentId, mark);
+            @QueryParam("studentMark") String mark)
+            throws EmptyFieldException, CastToIntException, MarkFieldValueException {
+
+        String status = "-1";
+
+        if (name != null && !name.trim().isEmpty() &&
+                surname != null && !surname.trim().isEmpty() &&
+                age != null && !age.trim().isEmpty() &&
+                studentId != null && !studentId.trim().isEmpty() &&
+                mark != null && !mark.trim().isEmpty()) {
+
+            try {
+                Integer.parseInt(age.trim());
+                Integer.parseInt(studentId.trim());
+
+                if (mark.equals("неудовлетворительно") ||
+                        mark.equals("удовлетворительно") ||
+                        mark.equals("хорошо") ||
+                        mark.equals("отлично")) {
+
+                    status = new PostgreSQLDAO().createStudent(name, surname, age, studentId, mark);
+
+                } else {
+                    throw MarkFieldValueException.DEFAULT_INSTANCE;
+                }
+
+            } catch (NumberFormatException ex) {
+                throw new CastToIntException("An error occurred when trying to convert 'age' and `student_id` to integers. ");
+            }
+
+        } else {
+            throw EmptyFieldException.DEFAULT_INSTANCE;
+        }
+
+        return status;
+
     }
 
     @DELETE
