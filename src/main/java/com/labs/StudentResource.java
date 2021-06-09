@@ -61,8 +61,23 @@ public class StudentResource {
     }
 
     @DELETE
-    public String deleteStudent(@QueryParam("rowId") String rowId) {
-        return new PostgreSQLDAO().deleteStudent(rowId);
+    public String deleteStudent(@QueryParam("rowId") String rowId)
+            throws EmptyFieldException, rowIsNotExistsException, CastToIntException {
+        String status;
+        if (rowId != null && !rowId.trim().isEmpty()) {
+            try {
+                Integer.parseInt(rowId.trim());
+                status = new PostgreSQLDAO().deleteStudent(rowId);
+                if (status.equals("0")) {
+                    throw rowIsNotExistsException.DEFAULT_INSTANCE;
+                }
+            } catch (NumberFormatException ex) {
+                throw new CastToIntException("An error occurred when trying to convert 'rowId' to integer. ");
+            }
+        } else {
+            throw EmptyFieldException.DEFAULT_INSTANCE;
+        }
+        return status;
     }
 
     @PUT

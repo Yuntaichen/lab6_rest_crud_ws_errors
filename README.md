@@ -308,3 +308,97 @@ ResourceConfig resourceConfig = new PackagesResourceConfig(StudentResource.class
 ![image-20210609135905347](README.assets/image-20210609135905347.png)
 
 Получаем соответствующий код ошибки и сообщение, ранее указанное для подобного исключения.
+
+Для метода deleteStudent() будем обрабатывать следующие ошибки:
+
+* В случае, когда rowId является null или пустой строкой, а также когда нельзя привести к целому числу мы не будем делать запрос к БД, а сразу будем выбрасывать соответствующее исключение, которое было подготовлено при работе с исключениями метода createStudent().
+* В случаях, когда возвращается статус "0" будем выбрасывать исключение о том, что в таблице в БД не было записи с указанным идентификатором - исключение rowIsNotExistsException.
+
+Также создаем два класса:
+
+rowIsNotExistsException:
+
+```java
+public class rowIsNotExistsException extends Exception {
+    private static final long serialVersionUID = -6647544772732631047L;
+
+    public static rowIsNotExistsException DEFAULT_INSTANCE = new rowIsNotExistsException("Row with this ID does not exist.");
+
+    public rowIsNotExistsException(String message) {
+        super(message);
+    }
+}
+```
+
+rowIsNotExistsExceptionMapper:
+
+```java
+@Provider
+public class rowIsNotExistsExceptionMapper implements ExceptionMapper<rowIsNotExistsException> {
+    @Override
+    public Response toResponse(rowIsNotExistsException ex) {
+        return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+    }
+}
+```
+
+
+
+Затем соответствующим образом добавляем обработку указанных ошибок в классе StudentResource:
+
+```java
+    @DELETE
+    public String deleteStudent(@QueryParam("rowId") String rowId) 
+            throws EmptyFieldException, rowIsNotExistsException, CastToIntException {
+        String status;
+        if (rowId != null && !rowId.trim().isEmpty()) {
+            try {
+                Integer.parseInt(rowId.trim());
+                status = new PostgreSQLDAO().deleteStudent(rowId);
+                if (status.equals("0")) {
+                    throw rowIsNotExistsException.DEFAULT_INSTANCE;
+                }
+            } catch (NumberFormatException ex) {
+                throw new CastToIntException("An error occurred when trying to convert 'rowId' to integer. ");
+            }
+        } else {
+            throw EmptyFieldException.DEFAULT_INSTANCE;
+        }
+        return status;
+    }
+```
+
+Далее изменим класс клиента ClientApp:
+
+```java
+    private static void deleteStudent(Client client) {
+        // Консольный ввод аргументов
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Input rowId (integer): ");
+        String rowId = scanner.nextLine();
+
+
+        WebResource webResource = client.resource(URL);
+        webResource = webResource.queryParam("rowId", rowId);
+        ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).delete(ClientResponse.class);
+
+        System.out.println(response.getEntity(new GenericType<String>() {}));
+        System.out.println(response.getStatus());
+
+    }
+```
+
+При запуске сервиса видим в логах новый класс исключения:
+
+![image-20210609145812129](README.assets/image-20210609145812129.png)
+
+Далее запустим клиент и попробуем выполнить запрос DELETE с несуществующим rowId:
+
+![image-20210609150049474](README.assets/image-20210609150049474.png)
+
+Далее переходим к обработке исключений метода updateStudent().
+
+
+
+
+

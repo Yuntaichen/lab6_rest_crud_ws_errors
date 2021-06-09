@@ -221,20 +221,14 @@ public class ClientApp {
         System.out.print("Input rowId (integer): ");
         String rowId = scanner.nextLine();
 
-        try {
-            Integer.parseInt(rowId.trim());
 
-            WebResource webResource = client.resource(URL);
-            webResource = webResource.queryParam("rowId", rowId);
-            ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).delete(ClientResponse.class);
-            if (response.getStatus() != ClientResponse.Status.OK.getStatusCode()) {
-                throw new IllegalStateException("Request failed");
-            }
-            System.out.println(response.getStatus());
+        WebResource webResource = client.resource(URL);
+        webResource = webResource.queryParam("rowId", rowId);
+        ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).delete(ClientResponse.class);
 
-        } catch (NumberFormatException ex) {
-            System.out.println("Incorrect rowId value! Input just one integer.");
-        }
+        System.out.println(response.getEntity(new GenericType<String>() {}));
+        System.out.println(response.getStatus());
+
     }
 
     private static void createStudent(Client client) {
