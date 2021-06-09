@@ -398,7 +398,170 @@ public class rowIsNotExistsExceptionMapper implements ExceptionMapper<rowIsNotEx
 
 Далее переходим к обработке исключений метода updateStudent().
 
+* Если отсутствует rowId или он не является числом;
+* Если строку с указанным rowId не удалось найти
+* Если все остальные поля пустые;
+* Если `studentAge, studentId` невозможно привести к целому числу;
+* Если поле 'mark' не содержит одного из возможных значений: 'неудовлетворительно', ' удовлетворительно', 'хорошо', 'отлично'.
+
+Все классы исключений были созданы ранее, теперь остается добавить проверки в класс StudentResource:
+
+```java
+    @PUT
+    public String updateStudent(
+            @QueryParam("rowId") String rowId,
+            @QueryParam("studentName") String name,
+            @QueryParam("studentSurname") String surname,
+            @QueryParam("studentAge") String age,
+            @QueryParam("studentId") String studentId,
+            @QueryParam("studentMark") String mark)
+            throws EmptyFieldException, CastToIntException, MarkFieldValueException,
+            rowIsNotExistsException {
+
+        String status;
+        List<String> updateArgs = new ArrayList<>();
+
+        if (rowId != null && !rowId.trim().isEmpty()) {
+            if ((name != null && !name.trim().isEmpty()) ||
+                    (surname != null && !surname.trim().isEmpty()) ||
+                    (age != null && !age.trim().isEmpty()) ||
+                    (studentId != null && !studentId.trim().isEmpty()) ||
+                    (mark != null && !mark.trim().isEmpty())) {
+
+                try {
+                    Integer.parseInt(rowId.trim());
+                    if (name != null && !name.trim().isEmpty()) updateArgs.add("name = '" + name + "'");
+                    if (surname != null && !surname.trim().isEmpty()) updateArgs.add("surname = '" + surname + "'");
+                    try {
+                        if (age != null && !age.trim().isEmpty()) {
+                            Integer.parseInt(age.trim());
+                            updateArgs.add("age = '" + age + "'");
+                        }
+                        if (studentId != null && !studentId.trim().isEmpty()) {
+                            Integer.parseInt(studentId.trim());
+                            updateArgs.add("student_id = '" + studentId + "'");
+                        }
+                    } catch (NumberFormatException e) {
+                        throw new CastToIntException("An error occurred when trying to convert " +
+                            "'age' or 'studentId' to integer. ");
+                    }
+                } catch (NumberFormatException e) {
+                    throw new CastToIntException("An error occurred when trying to convert 'rowId' to integer. ");
+                }
+            } else {
+                throw EmptyFieldException.DEFAULT_INSTANCE;
+            }
+        } else {
+            throw new EmptyFieldException("rowID cannot be empty!");
+        }
+
+        if (mark != null && !mark.trim().isEmpty()) {
+             if (mark.equals("неудовлетворительно") ||
+                    mark.equals("удовлетворительно") ||
+                    mark.equals("хорошо") ||
+                    mark.equals("отлично")) {
+                updateArgs.add("mark = '" + mark + "'");
+            } else {
+                throw MarkFieldValueException.DEFAULT_INSTANCE;
+            }
+        }
+
+        status = new PostgreSQLDAO().updateStudent(rowId, updateArgs);
+        if (status.equals("0")) {
+            throw rowIsNotExistsException.DEFAULT_INSTANCE;
+        }
+
+        return status;
+    }
+```
+
+Теперь точно также убираем проверки из клиента, но изначально убедимся в перехвате исключений при помощи запросов из Postman:
+
+![image-20210609161253600](README.assets/image-20210609161253600.png)
+
+![image-20210609161424099](README.assets/image-20210609161424099.png)
+
+![image-20210609161510340](README.assets/image-20210609161510340.png)
 
 
 
+И теперь переходим к изменению класса клиента ClientApp:
+
+```java
+    private static void updateStudent(Client client) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Input rowID (integer): ");
+        String rowId = scanner.nextLine();
+        System.out.println("What fields you want update for this row? \n" +
+                    "Choose fields from 'name', 'surname', 'age', 'student_id', 'mark' and input it's below \n" +
+                    " separated by comma without spaces");
+        String updateRows = scanner.nextLine();
+        String[] updateRowsList = updateRows.split(",", -1);
+        Map<String, String> updateRowsMap = new HashMap<>();
+        updateRowsMap.put("name", "");
+        updateRowsMap.put("surname", "");
+        updateRowsMap.put("age", "");
+        updateRowsMap.put("student_id", "");
+        updateRowsMap.put("mark", "");
+
+        for (String row : updateRowsList) {
+            switch (row) {
+                case "name":
+                    System.out.println("Input new value for 'name' field:");
+                    String name = scanner.nextLine();
+                    updateRowsMap.put("name", name);
+                    break; 
+                case "surname":
+                    System.out.println("Input new value for 'surname' field:");
+                    String surname = scanner.nextLine();
+                    updateRowsMap.put("surname", surname);
+                    break;
+                case "age":
+                    System.out.println("Input new value for 'age' field (integer):");
+                    String age = scanner.nextLine();
+                    updateRowsMap.put("age", age);
+                    break;
+                case "student_id":
+                    System.out.println("Input new value for 'student_id' field (integer):");
+                    String student_id = scanner.nextLine();
+                    updateRowsMap.put("student_id", student_id);
+                    break;
+                case "mark":
+                    System.out.println("Input new value for 'mark' field:");
+                    String mark = scanner.nextLine();
+                    updateRowsMap.put("mark", mark);
+                    break;
+        }
+
+        System.out.println("You input new values for row " + rowId + ":\n" + updateRowsMap);
+        System.out.println("Do you really want to change this fields for row " + rowId + "? (y -> yes, other -> no)");
+        String agree = scanner.nextLine();
+        if (agree.equals("y")) {
+                String name = updateRowsMap.get("name");
+                String surname = updateRowsMap.get("surname");
+                String age = updateRowsMap.get("age");
+                String studentId = updateRowsMap.get("student_id");
+                String mark = updateRowsMap.get("mark");
+
+                WebResource webResource = client.resource(URL);
+                webResource = webResource.queryParam("rowId",
+                            rowId).queryParam("studentName", name).queryParam("studentSurname",
+                            surname).queryParam("studentAge", age).queryParam("studentId",
+                            studentId).queryParam("studentMark", mark);
+                ClientResponse response = webResource.accept(MediaType.APPLICATION_JSON).put(ClientResponse.class);
+
+                System.out.println(response.getStatus());
+                System.out.println(response.getEntity(new GenericType<String>() {}));
+                
+        } else {
+                System.out.println("You just cancel your request. Try another request or exit."); 
+        }
+    }
+```
+
+
+
+В данном случае мы попросту убрали проверки полей при их добавлении и будем отправлять то, что было введено, чтобы сервис обрабатывал их самостоятельно и возвращал соответствующий ответ.
+
+![image-20210609165444663](README.assets/image-20210609165444663.png)
 
